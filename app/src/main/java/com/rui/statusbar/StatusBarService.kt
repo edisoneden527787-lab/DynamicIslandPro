@@ -38,6 +38,15 @@ class StatusBarService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val prefs by lazy { getSharedPreferences("rui_statusbar", MODE_PRIVATE) }
     private var textColor = Color.BLACK
+    @Volatile private var displayOverrideNetworkType = TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE
+    private val telephonyDisplayCallback by lazy {
+        object : TelephonyCallback(), TelephonyCallback.DisplayInfoListener {
+            override fun onDisplayInfoChanged(info: TelephonyDisplayInfo) {
+                displayOverrideNetworkType = info.overrideNetworkType
+                handler.post { if (::overlay.isInitialized) updateValues() }
+            }
+        }
+    }
 
     private val tick = object : Runnable {
         override fun run() {
@@ -78,6 +87,14 @@ class StatusBarService : Service() {
             else {
                 @Suppress("DEPRECATION")
                 registerReceiver(receiver, filter)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                try {
+                    val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+                    tm.registerTelephonyCallback(mainExecutor, telephonyDisplayCallback)
+                } catch (e: Exception) {
+                    android.util.Log.w("RuiStatusBar", "Unable to register 5G display callback", e)
+                }
             }
             updateValues()
             handler.postDelayed(tick, 5_000L)
@@ -252,10 +269,20 @@ class StatusBarService : Service() {
             val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
             val caps = cm.getNetworkCapabilities(cm.activeNetwork)
             val wifiConnected = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-            val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-            @Suppress("DEPRECATION")
-            val rssi = if (wifiConnected) wifiManager.connectionInfo?.rssi ?: -100 else -100
-            wifi.level = if (wifiConnected) WifiManager.calculateSignalLevel(rssi, 5) else 0
+            val wifiInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                caps?.transportInfo as? android.net.wifi.WifiInfo else null
+            var rssi = if (wifiConnected) wifiInfo?.rssi ?: -127 else -127
+            if (wifiConnected && rssi <= -127) {
+                val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+                @Suppress("DEPRECATION")
+                val fallbackRssi = wifiManager.connectionInfo?.rssi ?: -127
+                if (fallbackRssi > -127) rssi = fallbackRssi
+            }
+            // A real connected Wi-Fi network should not look like zero bars merely because
+            // Android redacted the legacy WifiManager RSSI value.
+            wifi.level = if (wifiConnected && rssi > -127)
+                WifiManager.calculateSignalLevel(rssi, 5).coerceIn(1, 4)
+                else if (wifiConnected) 1 else 0
         } catch (e: Exception) {
             wifi.level = 0
             android.util.Log.w("RuiStatusBar", "Wi-Fi status unavailable", e)
@@ -267,11 +294,14 @@ class StatusBarService : Service() {
             level = tm.signalStrength?.level ?: -1
             val inService = tm.serviceState?.state == android.telephony.ServiceState.STATE_IN_SERVICE
             val network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) tm.dataNetworkType else tm.networkType
-            networkLabel = if (!inService) "無訊號" else when (network) {
-                TelephonyManager.NETWORK_TYPE_NR -> "5G"
-                TelephonyManager.NETWORK_TYPE_LTE -> "4G"
-                TelephonyManager.NETWORK_TYPE_IWLAN -> "Wi-Fi"
-                TelephonyManager.NETWORK_TYPE_UNKNOWN -> if (level <= 0) "無訊號" else "行動網路"
+            val isNrDisplay = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                (displayOverrideNetworkType == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA ||
+                 displayOverrideNetworkType == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED)
+            networkLabel = if (!inService) "無訊號" else when {
+                network == TelephonyManager.NETWORK_TYPE_NR || isNrDisplay -> "5G"
+                network == TelephonyManager.NETWORK_TYPE_LTE -> "4G"
+                network == TelephonyManager.NETWORK_TYPE_IWLAN -> "Wi-Fi"
+                network == TelephonyManager.NETWORK_TYPE_UNKNOWN -> if (level <= 0) "無訊號" else "行動網路"
                 else -> if (level <= 0) "無訊號" else "4G"
             }
         } catch (e: SecurityException) {
@@ -309,6 +339,12 @@ class StatusBarService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(tick)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+                tm.unregisterTelephonyCallback(telephonyDisplayCallback)
+            } catch (_: Exception) {}
+        }
         try { unregisterReceiver(receiver) } catch (_: Exception) {}
         if (::overlay.isInitialized) try { wm.removeView(overlay) } catch (_: Exception) {}
         super.onDestroy()
@@ -331,7 +367,7 @@ class StatusBarService : Service() {
             val cy = height * 0.78f
             val radii = floatArrayOf(dp(13f), dp(9f), dp(5f))
             radii.forEachIndexed { index, r ->
-                paint.alpha = if (level >= (4 - index)) 255 else 65
+                paint.alpha = if (level >= (3 - index)) 255 else 65
                 canvas.drawArc(RectF(cx-r, cy-r, cx+r, cy+r), 225f, 90f, false, paint)
             }
             paint.style = Paint.Style.FILL
