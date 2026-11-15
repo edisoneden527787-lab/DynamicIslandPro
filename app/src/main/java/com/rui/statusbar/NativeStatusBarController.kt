@@ -12,7 +12,7 @@ object NativeStatusBarController {
     private const val BACKUP_KEY = "nativeStatusBarPolicyBackup"
     private const val HAD_VALUE_KEY = "nativeStatusBarPolicyHadValue"
     private const val HIDE_FLAGS =
-        "cmd statusbar send-disable-flag system-icons clock notification-icons statusbar-expansion quick-settings"
+        "cmd statusbar send-disable-flag system-icons clock notification-icons"
 
     fun hasShizukuPermission(): Boolean =
         Shizuku.pingBinder() && Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -30,7 +30,7 @@ object NativeStatusBarController {
             }
             shell(HIDE_FLAGS)
             prefs.edit().putBoolean("nativeStatusBarShellHidden", true).commit()
-            "已送出隱藏原生狀態列圖示與下拉面板指令"
+            "已送出隱藏原生狀態列圖示與時鐘指令"
         } else {
             // Clear only the flags set by this controller. The AOSP shell command's
             // stable token makes this reversible across separate shell invocations.
@@ -44,7 +44,7 @@ object NativeStatusBarController {
                 .remove(HAD_VALUE_KEY)
                 .putBoolean("nativeStatusBarShellHidden", false)
                 .commit()
-            "已恢復原生狀態列與下拉面板"
+            "已恢復原生狀態列"
         }
     }
 
