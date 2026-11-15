@@ -34,8 +34,24 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
-        buildUi()
+        try {
+            Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
+        } catch (e: Exception) {
+            android.util.Log.e("RuiStatusBar", "Shizuku listener initialization failed", e)
+        }
+        try {
+            buildUi()
+        } catch (e: Exception) {
+            android.util.Log.e("RuiStatusBar", "MainActivity startup failed", e)
+            val errorView = TextView(this).apply {
+                setTextColor(Color.WHITE)
+                textSize = 13f
+                setPadding(24, 32, 24, 32)
+                text = "Rui StatusBar 啟動失敗\n\n" + android.util.Log.getStackTraceString(e)
+                setBackgroundColor(Color.BLACK)
+            }
+            setContentView(ScrollView(this).apply { setBackgroundColor(Color.BLACK); addView(errorView) })
+        }
     }
 
     override fun onDestroy() {
@@ -314,14 +330,9 @@ class MainActivity : Activity() {
     }
 
     private fun refresh() {
-        // Deliver updates directly to the running service; sliders apply while being dragged.
-        val intent = Intent(this, StatusBarService::class.java).setAction(StatusBarService.ACTION_REFRESH)
-        try {
-            if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
-        } catch (e: Exception) {
-            android.util.Log.w("RuiStatusBar", "Live refresh delivery failed", e)
-            sendBroadcast(Intent(StatusBarService.ACTION_REFRESH).setPackage(packageName))
-        }
+        // Never start a foreground service merely because the settings screen opened.
+        // Broadcast updates only; the running overlay service receives them while active.
+        sendBroadcast(Intent(StatusBarService.ACTION_REFRESH).setPackage(packageName))
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
