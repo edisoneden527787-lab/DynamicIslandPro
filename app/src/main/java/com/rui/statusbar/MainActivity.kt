@@ -76,6 +76,7 @@ class MainActivity : Activity() {
         })
 
         root.addView(label("系統原生狀態列（Shizuku）"))
+        root.addView(button("開啟 Shizuku／啟動無線偵錯") { openShizuku() })
         addToggle(root, "隱藏系統內建狀態列", "hideNativeStatusBar", false, persistBeforeCallback = false) { enabled ->
             if (enabled) {
                 if (!Shizuku.pingBinder()) {
@@ -247,6 +248,27 @@ class MainActivity : Activity() {
         })
         root.addView(valueText)
         root.addView(seek)
+    }
+
+    private fun openShizuku() {
+        val shizukuPackage = "moe.shizuku.privileged.api"
+        try {
+            val launchIntent = packageManager.getLaunchIntentForPackage(shizukuPackage)
+            if (launchIntent != null) {
+                startActivity(launchIntent)
+                status.text = "已開啟 Shizuku，請在裡面啟動服務"
+            } else {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$shizukuPackage")))
+                } catch (_: Exception) {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$shizukuPackage")))
+                }
+                status.text = "找不到 Shizuku，請先安裝 Shizuku"
+            }
+        } catch (e: Exception) {
+            status.text = "無法開啟 Shizuku：" + (e.message ?: e.javaClass.simpleName)
+            Toast.makeText(this, status.text, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun applyNativeStatusBarToggle(hidden: Boolean) {
