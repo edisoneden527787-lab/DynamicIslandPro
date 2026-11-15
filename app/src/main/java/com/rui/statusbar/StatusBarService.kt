@@ -93,7 +93,9 @@ class StatusBarService : Service() {
         }
         time=textView(); network=textView(); battery=textView()
         val childParams=LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
-        bar.addView(time, childParams)
+        val spacer=android.view.View(this)
+        bar.addView(time, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT))
+        bar.addView(spacer, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
         bar.addView(network, childParams)
         bar.addView(battery, childParams)
         val statusBarHeight = resources.getIdentifier("status_bar_height", "dimen", "android")
@@ -140,12 +142,16 @@ class StatusBarService : Service() {
         val caps=cm.getNetworkCapabilities(cm.activeNetwork)
         val wifi=caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)==true
         val cellular=caps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)==true
-        network.text=if(wifi) "  Wi-Fi" else if(cellular) "  "+signalIndicator else "  ·"
+        network.text=when {
+            wifi -> "⌁"
+            cellular -> signalIndicator
+            else -> "·"
+        }
         val sticky=registerReceiver(null,IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level=sticky?.getIntExtra(BatteryManager.EXTRA_LEVEL,-1)?:-1
         val scale=sticky?.getIntExtra(BatteryManager.EXTRA_SCALE,100)?:100
         val pct=if(level>=0 && scale>0) level*100/scale else -1
-        battery.text=if(pct>=0) "  "+pct+"%" else "  --%"
+        battery.text=if(pct>=0) "▰ "+pct+"%" else "▰ --%"
     }
     private fun registerSignalListener() {
         if(Build.VERSION.SDK_INT>=31 && checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE)==PackageManager.PERMISSION_GRANTED) {
