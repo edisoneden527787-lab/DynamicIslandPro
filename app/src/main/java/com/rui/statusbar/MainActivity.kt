@@ -9,6 +9,10 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.*
+import android.content.res.ColorStateList
+import android.graphics.Typeface
+import android.graphics.Color
+import android.view.ViewGroup
 
 class MainActivity : Activity() {
     private val prefs by lazy { getSharedPreferences("rui_statusbar", MODE_PRIVATE) }
@@ -23,18 +27,22 @@ class MainActivity : Activity() {
     private fun buildUi() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24, 24, 24, 24)
-            setBackgroundColor(0xFFF5F5F5.toInt())
+            val d = resources.displayMetrics.density
+            setPadding((20*d).toInt(), (24*d).toInt(), (20*d).toInt(), (32*d).toInt())
+            setBackgroundColor(0xFFF3F5F9.toInt())
         }
         root.addView(TextView(this).apply {
             text = "Rui StatusBar"
-            textSize = 26f
-            setTextColor(0xFF111111.toInt())
+            textSize = 27f
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            setTextColor(0xFF172033.toInt())
+            setPadding(0, 0, 0, 5)
         })
         status = TextView(this).apply {
-            text = "頂端顯示時間、Wi-Fi、訊號與電量"
+            text = "自訂你的透明狀態列"
             textSize = 14f
-            setTextColor(0xFF555555.toInt())
+            setTextColor(0xFF718096.toInt())
+            setPadding(0, 0, 0, 16)
         }
         root.addView(status)
         root.addView(label("顯示與權限"))
@@ -108,19 +116,31 @@ class MainActivity : Activity() {
 
     private fun label(s: String) = TextView(this).apply {
         text = s
-        textSize = 16f
-        setTextColor(0xFF222222.toInt())
-        setPadding(0, 20, 0, 6)
+        textSize = 13f
+        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        setTextColor(0xFF52627A.toInt())
+        setPadding(0, 22, 0, 8)
     }
 
     private fun button(s: String, action: () -> Unit) = Button(this).apply {
         text = s
+        textAllCaps = false
+        textSize = 14f
+        typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+        setTextColor(Color.WHITE)
+        backgroundTintList = ColorStateList.valueOf(0xFF3867D6.toInt())
+        setPadding(18, 8, 18, 8)
         setOnClickListener { action() }
     }
 
     private fun addSlider(root: LinearLayout, min: Int, max: Int, value: Int, suffix: String, changed: (Int) -> Unit) {
         val valueText = TextView(this).apply { textSize = 13f; setTextColor(0xFF555555.toInt()) }
-        val seek = SeekBar(this).apply { this.max = max - min; progress = (value - min).coerceIn(0, this.max) }
+        val seek = SeekBar(this).apply {
+            this.max = max - min
+            progress = (value - min).coerceIn(0, this.max)
+            progressTintList = ColorStateList.valueOf(0xFF3867D6.toInt())
+            thumbTintList = ColorStateList.valueOf(0xFF3867D6.toInt())
+        }
         fun show(v: Int) { valueText.text = v.toString() + suffix }
         show(value)
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
