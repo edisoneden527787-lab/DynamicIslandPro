@@ -34,14 +34,6 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.BLACK
-        window.navigationBarColor = Color.BLACK
-        if (Build.VERSION.SDK_INT >= 29) {
-            window.isNavigationBarContrastEnforced = false
-            window.isStatusBarContrastEnforced = false
-        }
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = 0
         Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
         buildUi()
     }
@@ -196,56 +188,7 @@ class MainActivity : Activity() {
             prefs.edit().clear().apply()
             buildUi()
         })
-        // iOS Settings-inspired dark grouped controls.
-        for (index in 0 until root.childCount) {
-            val child = root.getChildAt(index)
-            when (child) {
-                is Switch -> {
-                    child.setTextColor(Color.WHITE)
-                    child.textSize = 15f
-                    child.background = roundedPanel(0xFF1C1C1E.toInt(), 16f)
-                    child.buttonTintList = ColorStateList.valueOf(0xFF30D158.toInt())
-                    child.setPadding(dp(14), dp(10), dp(14), dp(10))
-                }
-                is Button -> {
-                    child.background = roundedPanel(0xFF2C2C2E.toInt(), 18f)
-                    child.backgroundTintList = null
-                    child.setTextColor(0xFF0A84FF.toInt())
-                    child.minHeight = dp(48)
-                    child.setPadding(dp(18), dp(10), dp(18), dp(10))
-                }
-                is SeekBar -> {
-                    child.progressTintList = ColorStateList.valueOf(0xFF0A84FF.toInt())
-                    child.thumbTintList = ColorStateList.valueOf(0xFF0A84FF.toInt())
-                }
-                is EditText -> {
-                    child.setTextColor(Color.WHITE)
-                    child.setHintTextColor(0xFF8E8E93.toInt())
-                    child.background = roundedPanel(0xFF1C1C1E.toInt(), 14f)
-                    child.setPadding(dp(14), dp(12), dp(14), dp(12))
-                }
-                is Spinner -> {
-                    child.background = roundedPanel(0xFF1C1C1E.toInt(), 14f)
-                    child.setPadding(dp(12), dp(8), dp(12), dp(8))
-                }
-                is RadioGroup -> {
-                    for (i in 0 until child.childCount) {
-                        (child.getChildAt(i) as? RadioButton)?.apply {
-                            setTextColor(Color.WHITE)
-                            buttonTintList = ColorStateList.valueOf(0xFF0A84FF.toInt())
-                        }
-                    }
-                }
-                is TextView -> {
-                    if (child.textSize <= 14f) child.setTextColor(0xFF8E8E93.toInt())
-                }
-            }
-        }
-        setContentView(ScrollView(this).apply {
-            setBackgroundColor(Color.BLACK)
-            clipToPadding = false
-            addView(root)
-        })
+        setContentView(ScrollView(this).apply { setBackgroundColor(Color.BLACK); addView(root) })
         refresh()
     }
 
@@ -282,17 +225,18 @@ class MainActivity : Activity() {
         setTextColor(Color.WHITE)
         background = roundedPanel(0xFF2C2C2E.toInt(), 18f)
         backgroundTintList = null
+        setTextColor(0xFF0A84FF.toInt())
         setPadding(18, 8, 18, 8)
         setOnClickListener { action() }
     }
 
     private fun addSlider(root: LinearLayout, min: Int, max: Int, value: Int, suffix: String, changed: (Int) -> Unit) {
-        val valueText = TextView(this).apply { textSize = 13f; setTextColor(0xFFAEAEB2.toInt()) }
+        val valueText = TextView(this).apply { textSize = 13f; setTextColor(0xFF555555.toInt()) }
         val seek = SeekBar(this).apply {
             this.max = max - min
             progress = (value - min).coerceIn(0, this.max)
             progressTintList = ColorStateList.valueOf(0xFF0A84FF.toInt())
-            thumbTintList = ColorStateList.valueOf(0xFF0A84FF.toInt())
+            thumbTintList = ColorStateList.valueOf(0xFF3867D6.toInt())
         }
         fun show(v: Int) { valueText.text = v.toString() + suffix }
         show(value)
