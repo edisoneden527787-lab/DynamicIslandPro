@@ -70,6 +70,10 @@ class StatusBarService : Service() {
             when (intent?.action) {
                 ACTION_REFRESH -> updateStyleAndPosition()
                 Intent.ACTION_BATTERY_CHANGED -> updateBattery(intent)
+                Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
+                    updateValues()
+                    reapplyNativeStatusBarIfNeeded()
+                }
             }
         }
     }
@@ -93,7 +97,11 @@ class StatusBarService : Service() {
             }
             wm = getSystemService(WINDOW_SERVICE) as WindowManager
             createOverlay()
-            val filter = IntentFilter(ACTION_REFRESH).apply { addAction(Intent.ACTION_BATTERY_CHANGED) }
+            val filter = IntentFilter(ACTION_REFRESH).apply {
+                addAction(Intent.ACTION_BATTERY_CHANGED)
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_USER_PRESENT)
+            }
             if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
             else {
                 @Suppress("DEPRECATION")
