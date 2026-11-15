@@ -3,6 +3,7 @@ package com.rui.statusbar
 import android.app.*
 import android.content.*
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -40,9 +41,25 @@ class StatusBarService : Service() {
         createChannel()
         val notification=Notification.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setContentTitle("Rui StatusBar 正在運作").setContentText("透明狀態列覆蓋層已啟用").setOngoing(true).build()
-        startForeground(7,notification)
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(7, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(7, notification)
+        }
         wm=getSystemService(WINDOW_SERVICE) as WindowManager
-        createOverlay()
+        try {
+            createOverlay()
+        } catch (e: SecurityException) {
+            android.util.Log.e("RuiStatusBar", "Overlay permission denied", e)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        } catch (e: WindowManager.BadTokenException) {
+            android.util.Log.e("RuiStatusBar", "Unable to attach status bar overlay", e)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(receiver, IntentFilter(ACTION_REFRESH), Context.RECEIVER_NOT_EXPORTED)
         } else {
