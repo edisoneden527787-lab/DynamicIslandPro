@@ -6,7 +6,7 @@ android {
     namespace = "com.rui.statusbar"
     compileSdk = 35
     defaultConfig { applicationId = "com.rui.statusbar"; minSdk = 26; targetSdk = 34; versionCode = 1; versionName = "1.0.0" }
-    buildTypes { debug { applicationIdSuffix = ".debug"; versionNameSuffix = "-debug" }; release { isMinifyEnabled = false } }
+    buildTypes { debug { versionNameSuffix = "-debug" }; release { isMinifyEnabled = false } }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
 }
