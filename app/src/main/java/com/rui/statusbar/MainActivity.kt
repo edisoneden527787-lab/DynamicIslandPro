@@ -73,6 +73,37 @@ class MainActivity : Activity() {
         addSlider(root, 30, 58, prefs.getInt("batteryLength", 42), " dp") { prefs.edit().putInt("batteryLength", it).apply(); refresh() }
         root.addView(label("整體大小"))
         addSlider(root, 70, 150, prefs.getInt("scale", 100), "%") { prefs.edit().putInt("scale", it).apply(); refresh() }
+        root.addView(label("狀態列寬度"))
+        addSlider(root, 45, 100, prefs.getInt("statusWidth", 100), "%") { prefs.edit().putInt("statusWidth", it).apply(); refresh() }
+
+        root.addView(label("玩玩看：自訂狀態數值"))
+        addToggle(root, "啟用自訂時間／電量／訊號", "customValues", false)
+        val fakeTime = EditText(this).apply {
+            hint = "輸入時間，例如 09:41"
+            setSingleLine(true)
+            inputType = android.text.InputType.TYPE_CLASS_DATETIME or android.text.InputType.TYPE_DATETIME_VARIATION_TIME
+            setText(prefs.getString("fakeTime", "09:41"))
+        }
+        root.addView(fakeTime)
+        root.addView(button("套用自訂時間") {
+            val value = fakeTime.text.toString().trim()
+            if (value.matches(Regex("\\d{1,2}:\\d{2}"))) {
+                prefs.edit().putString("fakeTime", value).putBoolean("customValues", true).apply()
+                refresh()
+                status.text = "已套用自訂時間"
+            } else {
+                fakeTime.error = "請輸入例如 09:41 的格式"
+            }
+        })
+        root.addView(label("自訂電量"))
+        addSlider(root, 0, 100, prefs.getInt("fakeBattery", 88), "%") { prefs.edit().putInt("fakeBattery", it).putBoolean("customValues", true).apply(); refresh() }
+        root.addView(label("自訂訊號格數"))
+        addSlider(root, 0, 4, prefs.getInt("fakeSignal", 4), " 格") { prefs.edit().putInt("fakeSignal", it).putBoolean("customValues", true).apply(); refresh() }
+        root.addView(button("一鍵恢復系統時間／電量／訊號") {
+            prefs.edit().putBoolean("customValues", false).apply()
+            refresh()
+            status.text = "已恢復手機系統數值"
+        })
         root.addView(label("X 軸位置（左右）"))
         addSlider(root, -150, 150, prefs.getInt("x", 0), " dp") { prefs.edit().putInt("x", it).apply(); refresh() }
         root.addView(label("Y 軸位置（上下）"))
