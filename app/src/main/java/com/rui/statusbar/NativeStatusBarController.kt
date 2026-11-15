@@ -40,8 +40,11 @@ object NativeStatusBarController {
             val previous = prefs.getString(BACKUP_KEY, "").orEmpty()
             if (hadValue) shell("settings put global policy_control ${quote(previous)}")
             else shell("settings delete global policy_control")
-            prefs.edit().remove(BACKUP_KEY).remove(HAD_VALUE_KEY).apply()
-            "已送出恢復系統狀態列指令"
+            val restored = shell("settings get global policy_control").trim()
+            val expected = if (hadValue) previous else "null"
+            check(restored == expected) { "系統沒有成功恢復原生狀態列設定，備份已保留，請再試一次" }
+            prefs.edit().remove(BACKUP_KEY).remove(HAD_VALUE_KEY).commit()
+            "已恢復原生狀態列設定"
         }
     }
 
