@@ -41,10 +41,19 @@ class StatusBarService : Service() {
         createChannel()
         val notification=Notification.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setContentTitle("Rui StatusBar 正在運作").setContentText("透明狀態列覆蓋層已啟用").setOngoing(true).build()
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(7, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } else {
-            startForeground(7, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(7, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            } else {
+                startForeground(7, notification)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("RuiStatusBar", "Foreground service start failed", e)
+            try { startForeground(7, notification) } catch (fallback: Exception) {
+                android.util.Log.e("RuiStatusBar", "Foreground fallback failed", fallback)
+                stopSelf()
+                return
+            }
         }
         wm=getSystemService(WINDOW_SERVICE) as WindowManager
         try {
@@ -74,9 +83,19 @@ class StatusBarService : Service() {
             .createNotificationChannel(NotificationChannel(CHANNEL,"Rui StatusBar",NotificationManager.IMPORTANCE_LOW))
     }
     private fun createOverlay() {
-        bar=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL; gravity=Gravity.CENTER_VERTICAL; setBackgroundColor(Color.TRANSPARENT); setPadding(6,0,6,0) }
+        bar=LinearLayout(this).apply {
+            orientation=LinearLayout.HORIZONTAL
+            gravity=Gravity.CENTER_VERTICAL or Gravity.START
+            setBackgroundColor(Color.TRANSPARENT)
+            setPadding(6,0,6,0)
+            clipChildren=false
+            clipToPadding=false
+        }
         time=textView(); network=textView(); battery=textView()
-        bar.addView(time); bar.addView(network); bar.addView(battery)
+        val childParams=LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
+        bar.addView(time, childParams)
+        bar.addView(network, childParams)
+        bar.addView(battery, childParams)
         val statusBarHeight = resources.getIdentifier("status_bar_height", "dimen", "android")
             .takeIf { it > 0 }?.let { resources.getDimensionPixelSize(it) }
             ?: (24 * resources.displayMetrics.density).toInt()
@@ -85,16 +104,24 @@ class StatusBarService : Service() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             android.graphics.PixelFormat.TRANSLUCENT).apply {
                 gravity=Gravity.TOP or Gravity.START
                 x=0
                 y=0
+                width=WindowManager.LayoutParams.MATCH_PARENT
+                height=statusBarHeight
             }
         wm.addView(bar,params)
         updateStyleAndPosition()
     }
-    private fun textView()=TextView(this).apply { textSize=16f; setPadding(3,0,3,0); includeFontPadding=false }
+    private fun textView()=TextView(this).apply {
+        textSize=16f
+        gravity=Gravity.CENTER_VERTICAL
+        setPadding(3,0,3,0)
+        includeFontPadding=false
+        setSingleLine(true)
+    }
     private fun updateStyleAndPosition() {
         if(!::bar.isInitialized) return
         val mode=prefs.getInt("colorMode",1)
