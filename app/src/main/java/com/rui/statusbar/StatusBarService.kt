@@ -85,7 +85,12 @@ class StatusBarService : Service() {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_REFRESH && ::overlay.isInitialized) {
+            updateStyleAndPosition()
+        }
+        return START_STICKY
+    }
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
@@ -129,7 +134,7 @@ class StatusBarService : Service() {
         content.addView(View(this), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
         content.addView(cellular, iconParams(19, 19))
         content.addView(wifi, iconParams(20, 19))
-        content.addView(battery, iconParams(58, 26).apply { leftMargin = dp(3f).toInt() })
+        content.addView(battery, iconParams(prefs.getInt("batteryLength", 42).coerceIn(30, 58), 22))
         // The row itself must be taller than the native status bar when the user enlarges or moves it.
         // A full-screen parent alone does not prevent child TextViews from clipping at statusHeight.
         val requestedTextSize = prefs.getInt("font", 16) * prefs.getInt("scale", 100) / 100f
@@ -167,6 +172,14 @@ class StatusBarService : Service() {
         val size = prefs.getInt("font", 16) * prefs.getInt("scale", 100) / 100f
         time.setTextColor(textColor)
         time.textSize = size
+        val statusHeightId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        val statusHeight = if (statusHeightId > 0) resources.getDimensionPixelSize(statusHeightId) else dp(26f).toInt()
+        val contentHeight = maxOf(statusHeight, dp(maxOf(40f, size * 1.9f + 12f)).toInt(), dp(46f).toInt())
+        val contentLp = content.layoutParams as? FrameLayout.LayoutParams
+        if (contentLp != null && contentLp.height != contentHeight) {
+            contentLp.height = contentHeight
+            content.layoutParams = contentLp
+        }
         val weight = when (prefs.getInt("clockWeight", 2)) {
             1 -> Typeface.create("sans-serif", Typeface.NORMAL)
             3 -> Typeface.create("sans-serif", Typeface.BOLD)
