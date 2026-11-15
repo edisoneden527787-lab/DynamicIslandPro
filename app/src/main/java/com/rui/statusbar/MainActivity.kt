@@ -119,6 +119,7 @@ class MainActivity : Activity() {
         })
         root.addView(button("啟用狀態列") { startOverlay() })
         root.addView(button("停用狀態列") {
+            prefs.edit().putBoolean("serviceEnabled", false).apply()
             stopService(Intent(this, StatusBarService::class.java))
             status.text = "狀態列已停用"
         })
@@ -346,6 +347,7 @@ class MainActivity : Activity() {
     }
 
     private fun startOverlay() {
+        prefs.edit().putBoolean("serviceEnabled", true).apply()
         if (!Settings.canDrawOverlays(this)) {
             status.text = "請先授予 Overlay 權限"
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
