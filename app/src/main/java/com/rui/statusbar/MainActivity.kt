@@ -176,7 +176,14 @@ class MainActivity : Activity() {
     }
 
     private fun refresh() {
-        sendBroadcast(Intent(StatusBarService.ACTION_REFRESH).setPackage(packageName))
+        // Deliver updates directly to the running service; sliders apply while being dragged.
+        val intent = Intent(this, StatusBarService::class.java).setAction(StatusBarService.ACTION_REFRESH)
+        try {
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+        } catch (e: Exception) {
+            android.util.Log.w("RuiStatusBar", "Live refresh delivery failed", e)
+            sendBroadcast(Intent(StatusBarService.ACTION_REFRESH).setPackage(packageName))
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
