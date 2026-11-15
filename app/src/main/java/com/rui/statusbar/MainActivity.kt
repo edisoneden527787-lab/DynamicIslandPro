@@ -105,9 +105,11 @@ class MainActivity : Activity() {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, networkOptions)
             setSelection(networkOptions.indexOf(prefs.getString("fakeNetworkType", "自動")).coerceAtLeast(0))
         }
+        var networkSpinnerReady = false
         networkSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                if (!networkSpinnerReady) { networkSpinnerReady = true; return }
                 prefs.edit().putString("fakeNetworkType", networkOptions[position]).putBoolean("customValues", true).apply()
                 refresh()
             }
