@@ -123,6 +123,7 @@ class StatusBarService : Service() {
         wifi = WifiIconView(this)
         cellular = CellularIconView(this)
         battery = BatteryIconView(this)
+        battery.layoutParams = iconParams(prefs.getInt("batteryLength", 42), 22).apply { leftMargin = dp(3f).toInt() }
 
         content.addView(time, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT))
         content.addView(View(this), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
@@ -180,6 +181,12 @@ class StatusBarService : Service() {
         wifi.setScale(prefs.getInt("scale", 100) / 100f)
 
         // The overlay window stays full-width; move the inner content itself so X really changes.
+        val batteryLp = battery.layoutParams as LinearLayout.LayoutParams
+        val batteryWidth = prefs.getInt("batteryLength", 42).coerceIn(30, 58)
+        if (batteryLp.width != dp(batteryWidth.toFloat()).toInt()) {
+            batteryLp.width = dp(batteryWidth.toFloat()).toInt()
+            battery.layoutParams = batteryLp
+        }
         content.translationX = dp(prefs.getInt("x", 0).toFloat())
         content.translationY = dp(prefs.getInt("y", 0).toFloat())
         cellular.visibility = if (prefs.getBoolean("showCellular", true)) View.VISIBLE else View.GONE
@@ -286,14 +293,14 @@ class StatusBarService : Service() {
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             val d = resources.displayMetrics.density
-            val body = RectF(1f*d, 4f*d, width-5f*d, height-4f*d)
-            val radius = 3f*d
+            val body = RectF(1f*d, 4f*d, width-4f*d, height-4f*d)
+            val radius = 4f*d
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 1.5f*d
+            paint.strokeWidth = 1.35f*d
             paint.color = color
             paint.alpha = 235
             canvas.drawRoundRect(body, radius, radius, paint)
-            val tip = RectF(width-4.5f*d, height*0.37f, width-1f*d, height*0.63f)
+            val tip = RectF(width-3.5f*d, height*0.37f, width-0.5f*d, height*0.63f)
             paint.style = Paint.Style.FILL
             canvas.drawRoundRect(tip, 1f*d, 1f*d, paint)
             val inner = RectF(body.left+2f*d, body.top+2f*d, body.right-2f*d, body.bottom-2f*d)
