@@ -31,6 +31,7 @@ class StatusBarService : Service() {
     private lateinit var time: TextView
     private lateinit var wifi: WifiIconView
     private lateinit var cellular: CellularIconView
+    private lateinit var networkType: TextView
     private lateinit var battery: BatteryIconView
     private lateinit var params: WindowManager.LayoutParams
     private val handler = Handler(Looper.getMainLooper())
@@ -127,12 +128,21 @@ class StatusBarService : Service() {
         }
         wifi = WifiIconView(this)
         cellular = CellularIconView(this)
+        networkType = TextView(this).apply {
+            textSize = 10f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            gravity = Gravity.CENTER_VERTICAL
+            includeFontPadding = false
+            setSingleLine(true)
+            setPadding(dp(2f).toInt(), 0, dp(2f).toInt(), 0)
+        }
         battery = BatteryIconView(this)
         battery.layoutParams = iconParams(prefs.getInt("batteryLength", 42), 22).apply { leftMargin = dp(3f).toInt() }
 
         content.addView(time, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT))
         content.addView(View(this), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
         content.addView(cellular, iconParams(19, 19))
+        content.addView(networkType, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT))
         content.addView(wifi, iconParams(20, 19))
         content.addView(battery, iconParams(prefs.getInt("batteryLength", 42).coerceIn(30, 58), 22))
         // The row itself must be taller than the native status bar when the user enlarges or moves it.
@@ -207,6 +217,8 @@ class StatusBarService : Service() {
         battery.setTextSize(size * 0.72f)
         wifi.setColor(textColor)
         cellular.setColor(textColor)
+        networkType.setTextColor(textColor)
+        networkType.textSize = (size * 0.62f).coerceIn(8f, 13f)
         cellular.setScale(prefs.getInt("scale", 100) / 100f)
         wifi.setScale(prefs.getInt("scale", 100) / 100f)
 
@@ -220,6 +232,7 @@ class StatusBarService : Service() {
         content.translationX = dp(prefs.getInt("x", 0).toFloat())
         content.translationY = dp(prefs.getInt("y", 0).toFloat())
         cellular.visibility = if (prefs.getBoolean("showCellular", true)) View.VISIBLE else View.GONE
+        networkType.visibility = if (prefs.getBoolean("showCellular", true)) View.VISIBLE else View.GONE
         wifi.visibility = if (prefs.getBoolean("showWifi", true)) View.VISIBLE else View.GONE
         updateValues()
     }
@@ -238,16 +251,37 @@ class StatusBarService : Service() {
             android.util.Log.w("RuiStatusBar", "Wi-Fi status unavailable", e)
         }
         var level = -1
+        var networkLabel = "無訊號"
         try {
             val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
             level = tm.signalStrength?.level ?: -1
+            val inService = tm.serviceState?.state == android.telephony.ServiceState.STATE_IN_SERVICE
+            val network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) tm.dataNetworkType else tm.networkType
+            networkLabel = if (!inService) "無訊號" else when (network) {
+                TelephonyManager.NETWORK_TYPE_NR -> "5G"
+                TelephonyManager.NETWORK_TYPE_LTE -> "4G"
+                TelephonyManager.NETWORK_TYPE_IWLAN -> "Wi-Fi"
+                TelephonyManager.NETWORK_TYPE_UNKNOWN -> if (level <= 0) "無訊號" else "行動網路"
+                else -> if (level <= 0) "無訊號" else "4G"
+            }
         } catch (e: SecurityException) {
             android.util.Log.w("RuiStatusBar", "Signal permission not granted", e)
+            networkLabel = "無訊號"
         } catch (e: Exception) {
             android.util.Log.w("RuiStatusBar", "Signal status unavailable", e)
+            networkLabel = "無訊號"
         }
+        if (custom) {
+            networkLabel = when (prefs.getString("fakeNetworkType", "自動")) {
+                "4G" -> "4G"
+                "5G" -> "5G"
+                "無訊號" -> "無訊號"
+                else -> networkLabel
+            }
+        }
+        networkType.text = networkLabel
         cellular.level = if (custom) prefs.getInt("fakeSignal", 4).coerceIn(0, 4)
-            else if (level in 0..4) level else 3
+            else if (level in 0..4) level else 0
         if (custom) {
             battery.percent = prefs.getInt("fakeBattery", 88).coerceIn(0, 100)
         } else {
