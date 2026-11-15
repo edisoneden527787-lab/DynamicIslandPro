@@ -43,6 +43,7 @@ class MainActivity : Activity() {
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = 0
         Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
+        buildUi()
     }
 
     override fun onDestroy() {
