@@ -46,7 +46,12 @@ object NativeStatusBarController {
     }
 
     private fun shell(command: String): String {
-        val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
+        // Shizuku 13.x keeps newProcess private; invoke its supported bridge reflectively.
+        val method = Shizuku::class.java.getDeclaredMethod(
+            "newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java
+        )
+        method.isAccessible = true
+        val process = method.invoke(null, arrayOf("sh", "-c", command), null, null) as Process
         val output = process.inputStream.bufferedReader().use { it.readText() }
         val error = process.errorStream.bufferedReader().use { it.readText() }
         val exit = process.waitFor()
