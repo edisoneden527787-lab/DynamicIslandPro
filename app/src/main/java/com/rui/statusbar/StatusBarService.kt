@@ -185,9 +185,17 @@ class StatusBarService : Service() {
         val statusHeight = if (statusHeightId > 0) resources.getDimensionPixelSize(statusHeightId) else dp(26f).toInt()
         val contentHeight = maxOf(statusHeight, dp(maxOf(40f, size * 1.9f + 12f)).toInt(), dp(46f).toInt())
         val contentLp = content.layoutParams as? FrameLayout.LayoutParams
-        if (contentLp != null && contentLp.height != contentHeight) {
-            contentLp.height = contentHeight
-            content.layoutParams = contentLp
+        if (contentLp != null) {
+            val requestedWidth = (resources.displayMetrics.widthPixels *
+                prefs.getInt("statusWidth", 100).coerceIn(45, 100) / 100f).toInt()
+            var changed = false
+            if (contentLp.height != contentHeight) { contentLp.height = contentHeight; changed = true }
+            if (contentLp.width != requestedWidth) { contentLp.width = requestedWidth; changed = true }
+            if (contentLp.gravity != (Gravity.TOP or Gravity.CENTER_HORIZONTAL)) {
+                contentLp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                changed = true
+            }
+            if (changed) content.layoutParams = contentLp
         }
         val weight = when (prefs.getInt("clockWeight", 2)) {
             1 -> Typeface.create("sans-serif", Typeface.NORMAL)
@@ -218,7 +226,9 @@ class StatusBarService : Service() {
 
     private fun updateValues() {
         if (!::overlay.isInitialized) return
-        time.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+        val custom = prefs.getBoolean("customValues", false)
+        time.text = if (custom) prefs.getString("fakeTime", "09:41")
+            else SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
         try {
             val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
             val caps = cm.getNetworkCapabilities(cm.activeNetwork)
@@ -236,9 +246,14 @@ class StatusBarService : Service() {
         } catch (e: Exception) {
             android.util.Log.w("RuiStatusBar", "Signal status unavailable", e)
         }
-        cellular.level = if (level in 0..4) level else 3
-        val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        if (batteryIntent != null) updateBattery(batteryIntent)
+        cellular.level = if (custom) prefs.getInt("fakeSignal", 4).coerceIn(0, 4)
+            else if (level in 0..4) level else 3
+        if (custom) {
+            battery.percent = prefs.getInt("fakeBattery", 88).coerceIn(0, 100)
+        } else {
+            val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            if (batteryIntent != null) updateBattery(batteryIntent)
+        }
     }
 
     private fun updateBattery(intent: Intent) {
