@@ -5,6 +5,7 @@ import android.content.*
 import android.graphics.*
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
 import android.os.*
 import android.telephony.TelephonyManager
 import android.view.Gravity
@@ -137,7 +138,8 @@ class StatusBarService : Service() {
             setPadding(dp(2f).toInt(), 0, dp(2f).toInt(), 0)
         }
         battery = BatteryIconView(this)
-        battery.layoutParams = iconParams(prefs.getInt("batteryLength", 42), 22).apply { leftMargin = dp(3f).toInt() }
+        val initialScale = prefs.getInt("scale", 100).coerceIn(70, 150) / 100f
+        battery.layoutParams = iconParams((prefs.getInt("batteryLength", 42) * initialScale).toInt(), (22 * initialScale).toInt()).apply { leftMargin = dp(3f).toInt() }
 
         content.addView(time, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT))
         content.addView(View(this), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
@@ -224,9 +226,13 @@ class StatusBarService : Service() {
 
         // The overlay window stays full-width; move the inner content itself so X really changes.
         val batteryLp = battery.layoutParams as LinearLayout.LayoutParams
+        val iconScale = prefs.getInt("scale", 100).coerceIn(70, 150) / 100f
         val batteryWidth = prefs.getInt("batteryLength", 42).coerceIn(30, 58)
-        if (batteryLp.width != dp(batteryWidth.toFloat()).toInt()) {
-            batteryLp.width = dp(batteryWidth.toFloat()).toInt()
+        val scaledBatteryWidth = dp((batteryWidth * iconScale).toFloat()).toInt()
+        val scaledBatteryHeight = dp((22f * iconScale)).toInt()
+        if (batteryLp.width != scaledBatteryWidth || batteryLp.height != scaledBatteryHeight) {
+            batteryLp.width = scaledBatteryWidth
+            batteryLp.height = scaledBatteryHeight
             battery.layoutParams = batteryLp
         }
         content.translationX = dp(prefs.getInt("x", 0).toFloat())
@@ -245,9 +251,13 @@ class StatusBarService : Service() {
         try {
             val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
             val caps = cm.getNetworkCapabilities(cm.activeNetwork)
-            wifi.isConnected = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+            val wifiConnected = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+            val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+            @Suppress("DEPRECATION")
+            val rssi = if (wifiConnected) wifiManager.connectionInfo?.rssi ?: -100 else -100
+            wifi.level = if (wifiConnected) WifiManager.calculateSignalLevel(rssi, 5) else 0
         } catch (e: Exception) {
-            wifi.isConnected = false
+            wifi.level = 0
             android.util.Log.w("RuiStatusBar", "Wi-Fi status unavailable", e)
         }
         var level = -1
@@ -309,22 +319,23 @@ class StatusBarService : Service() {
     private class WifiIconView(context: Context) : View(context) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeWidth = dp(2f) }
         private var color = Color.BLACK
-        var isConnected = false
-            set(value) { field = value; invalidate() }
+        var level = 0
+            set(value) { field = value.coerceIn(0, 4); invalidate() }
         private fun dp(v: Float) = v * resources.displayMetrics.density
         fun setColor(value: Int) { color = value; invalidate() }
         fun setScale(value: Float) { scaleX = value; scaleY = value }
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             paint.color = color
-            paint.alpha = if (isConnected) 255 else 115
             val cx = width / 2f
             val cy = height * 0.78f
             val radii = floatArrayOf(dp(13f), dp(9f), dp(5f))
-            radii.forEach { r ->
+            radii.forEachIndexed { index, r ->
+                paint.alpha = if (level >= (4 - index)) 255 else 65
                 canvas.drawArc(RectF(cx-r, cy-r, cx+r, cy+r), 225f, 90f, false, paint)
             }
             paint.style = Paint.Style.FILL
+            paint.alpha = if (level > 0) 255 else 65
             canvas.drawCircle(cx, cy, dp(1.7f), paint)
             paint.style = Paint.Style.STROKE
         }
@@ -387,7 +398,7 @@ class StatusBarService : Service() {
             // Draw a contrasting outline around the digits so they remain readable over the fill.
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = 1.8f * d
-            paint.color = if (color == Color.WHITE) Color.BLACK else Color.WHITE
+            paint.color = 0xFFD6D9DE.toInt()
             paint.alpha = 255
             canvas.drawText(label, body.centerX(), baseline, paint)
             paint.style = Paint.Style.FILL
