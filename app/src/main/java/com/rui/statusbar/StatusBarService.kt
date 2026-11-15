@@ -30,7 +30,7 @@ class StatusBarService : Service() {
     private var telephonyCallback:TelephonyCallback?=null
     private val prefs by lazy { getSharedPreferences("rui_statusbar",MODE_PRIVATE) }
     private val tick=object:Runnable { override fun run(){ updateValues(); handler.postDelayed(this,1000) } }
-    private val receiver=object:BroadcastReceiver {
+    private val receiver=object:BroadcastReceiver() {
         override fun onReceive(context:Context?,intent:Intent?){ updateStyleAndPosition() }
     }
 
