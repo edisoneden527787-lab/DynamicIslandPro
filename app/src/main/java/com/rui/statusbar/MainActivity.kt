@@ -76,7 +76,7 @@ class MainActivity : Activity() {
         })
 
         root.addView(label("系統原生狀態列（Shizuku）"))
-        addToggle(root, "隱藏系統內建狀態列", "hideNativeStatusBar", false) { enabled ->
+        addToggle(root, "隱藏系統內建狀態列", "hideNativeStatusBar", false, persistBeforeCallback = false) { enabled ->
             if (enabled) {
                 if (!Shizuku.pingBinder()) {
                     prefs.edit().putBoolean("hideNativeStatusBar", false).apply()
@@ -191,7 +191,7 @@ class MainActivity : Activity() {
         refresh()
     }
 
-    private fun addToggle(root: LinearLayout, title: String, key: String, default: Boolean, onChanged: (Boolean) -> Unit = {}) {
+    private fun addToggle(root: LinearLayout, title: String, key: String, default: Boolean, persistBeforeCallback: Boolean = true, onChanged: (Boolean) -> Unit = {}) {
         val toggle = Switch(this).apply {
             text = title
             textSize = 15f
@@ -252,10 +252,11 @@ class MainActivity : Activity() {
     private fun applyNativeStatusBarToggle(hidden: Boolean) {
         try {
             val message = NativeStatusBarController.setHidden(this, hidden).getOrThrow()
+            prefs.edit().putBoolean("hideNativeStatusBar", hidden).commit()
             status.text = message
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            prefs.edit().putBoolean("hideNativeStatusBar", !hidden).apply()
+            prefs.edit().putBoolean("hideNativeStatusBar", !hidden).commit()
             status.text = "設定失敗：" + (e.message ?: e.javaClass.simpleName)
             Toast.makeText(this, status.text, Toast.LENGTH_LONG).show()
             buildUi()
