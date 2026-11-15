@@ -99,6 +99,20 @@ class MainActivity : Activity() {
         addSlider(root, 0, 100, prefs.getInt("fakeBattery", 88), "%") { prefs.edit().putInt("fakeBattery", it).putBoolean("customValues", true).apply(); refresh() }
         root.addView(label("自訂訊號格數"))
         addSlider(root, 0, 4, prefs.getInt("fakeSignal", 4), " 格") { prefs.edit().putInt("fakeSignal", it).putBoolean("customValues", true).apply(); refresh() }
+        root.addView(label("自訂網路標示"))
+        val networkOptions = listOf("自動", "4G", "5G", "無訊號")
+        val networkSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, networkOptions)
+            setSelection(networkOptions.indexOf(prefs.getString("fakeNetworkType", "自動")).coerceAtLeast(0))
+        }
+        networkSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                prefs.edit().putString("fakeNetworkType", networkOptions[position]).putBoolean("customValues", true).apply()
+                refresh()
+            }
+        }
+        root.addView(networkSpinner)
         root.addView(button("一鍵恢復系統時間／電量／訊號") {
             prefs.edit().putBoolean("customValues", false).apply()
             refresh()
