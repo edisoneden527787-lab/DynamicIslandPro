@@ -129,7 +129,12 @@ class StatusBarService : Service() {
         content.addView(cellular, iconParams(19, 19))
         content.addView(wifi, iconParams(20, 19))
         content.addView(battery, iconParams(58, 26).apply { leftMargin = dp(3f).toInt() })
-        overlay.addView(content, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, statusHeight, Gravity.TOP))
+        // The row itself must be taller than the native status bar when the user enlarges or moves it.
+        // A full-screen parent alone does not prevent child TextViews from clipping at statusHeight.
+        val requestedTextSize = prefs.getInt("font", 16) * prefs.getInt("scale", 100) / 100f
+        val contentHeight = maxOf(statusHeight, dp(maxOf(40f, requestedTextSize * 1.9f + 12f)).toInt(), dp(46f).toInt())
+        content.minimumHeight = contentHeight
+        overlay.addView(content, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, contentHeight, Gravity.TOP))
         overlay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
