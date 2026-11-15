@@ -20,6 +20,12 @@ class MainActivity : Activity() {
     private lateinit var status: TextView
     private val signalPermissionRequest = 41
     private val shizukuPermissionRequest = 42
+    private val shizukuBinderReceivedListener = Shizuku.OnBinderReceivedListener {
+        runOnUiThread { updateShizukuStatus() }
+    }
+    private val shizukuBinderDeadListener = Shizuku.OnBinderDeadListener {
+        runOnUiThread { status.text = "Shizuku 連線中斷，請重新啟動服務" }
+    }
     private val shizukuPermissionListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
         if (requestCode == shizukuPermissionRequest) {
             if (grantResult == PackageManager.PERMISSION_GRANTED) {
@@ -36,6 +42,8 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         try {
             Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
+            Shizuku.addBinderReceivedListenerSticky(shizukuBinderReceivedListener)
+            Shizuku.addBinderDeadListener(shizukuBinderDeadListener)
         } catch (e: Exception) {
             android.util.Log.e("RuiStatusBar", "Shizuku listener initialization failed", e)
         }
@@ -54,9 +62,32 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        updateShizukuStatus()
+    }
+
     override fun onDestroy() {
         Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener)
+        Shizuku.removeBinderReceivedListener(shizukuBinderReceivedListener)
+        Shizuku.removeBinderDeadListener(shizukuBinderDeadListener)
         super.onDestroy()
+    }
+
+    private fun updateShizukuStatus() {
+        val connected = try { Shizuku.pingBinder() } catch (_: Exception) { false }
+        if (!connected) {
+            status.text = "Shizuku 尚未連線：請在 Shizuku 啟動無線偵錯服務，返回本 App 後再檢查"
+            return
+        }
+        val granted = try {
+            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+        } catch (_: Exception) { false }
+        status.text = if (granted) {
+            "Shizuku 已連線，Rui StatusBar 權限已授予"
+        } else {
+            "Shizuku 已連線，但尚未授權 Rui StatusBar"
+        }
     }
 
     private fun buildUi() {
@@ -93,6 +124,7 @@ class MainActivity : Activity() {
 
         root.addView(label("系統原生狀態列（Shizuku）"))
         root.addView(button("開啟 Shizuku／啟動無線偵錯") { openShizuku() })
+        root.addView(button("重新檢查 Shizuku 連線") { updateShizukuStatus() })
         addToggle(root, "隱藏系統內建狀態列", "hideNativeStatusBar", false, persistBeforeCallback = false) { enabled ->
             if (enabled) {
                 if (!Shizuku.pingBinder()) {
