@@ -69,6 +69,8 @@ class MainActivity : Activity() {
         addSlider(root, 10, 28, prefs.getInt("font", 16), " sp") { prefs.edit().putInt("font", it).apply(); refresh() }
         root.addView(label("時鐘字體粗細（1 一般／2 中等／3 粗體）"))
         addSlider(root, 1, 3, prefs.getInt("clockWeight", 2), "") { prefs.edit().putInt("clockWeight", it).apply(); refresh() }
+        root.addView(label("電池圖示長度"))
+        addSlider(root, 30, 58, prefs.getInt("batteryLength", 42), " dp") { prefs.edit().putInt("batteryLength", it).apply(); refresh() }
         root.addView(label("整體大小"))
         addSlider(root, 70, 150, prefs.getInt("scale", 100), "%") { prefs.edit().putInt("scale", it).apply(); refresh() }
         root.addView(label("X 軸位置（左右）"))
