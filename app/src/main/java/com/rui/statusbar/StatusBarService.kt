@@ -42,7 +42,12 @@ class StatusBarService : Service() {
         startForeground(7,notification)
         wm=getSystemService(WINDOW_SERVICE) as WindowManager
         createOverlay()
-        if(Build.VERSION.SDK_INT>=33) registerReceiver(receiver,IntentFilter(ACTION_REFRESH),RECEIVER_NOT_EXPORTED) else @Suppress("DEPRECATION") registerReceiver(receiver,IntentFilter(ACTION_REFRESH))
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(receiver, IntentFilter(ACTION_REFRESH), Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(receiver, IntentFilter(ACTION_REFRESH))
+        }
         registerSignalListener()
         handler.post(tick)
     }
