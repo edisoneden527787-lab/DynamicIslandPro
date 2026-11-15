@@ -126,7 +126,7 @@ class MainActivity : Activity() {
 
     private fun button(s: String, action: () -> Unit) = Button(this).apply {
         text = s
-        textAllCaps = false
+        isAllCaps = false
         textSize = 14f
         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         setTextColor(Color.WHITE)
