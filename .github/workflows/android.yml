@@ -28,3 +28,5 @@ jobs:
           name: Rui-StatusBar-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 90
+
+# Rebuild after startup performance and service lifecycle fixes.
