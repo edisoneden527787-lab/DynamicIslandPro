@@ -16,6 +16,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import rikka.shizuku.Shizuku
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,6 +41,12 @@ class StatusBarService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val prefs by lazy { getSharedPreferences("rui_statusbar", MODE_PRIVATE) }
     private var textColor = Color.BLACK
+    private val shizukuBinderReceivedListener = Shizuku.OnBinderReceivedListener {
+        handler.post { reapplyNativeStatusBarIfNeeded() }
+    }
+    private val shizukuBinderDeadListener = Shizuku.OnBinderDeadListener {
+        android.util.Log.w("RuiStatusBar", "Shizuku disconnected; native status bar restore is pending")
+    }
     @Volatile private var displayOverrideNetworkType = TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE
     private val telephonyDisplayCallback by lazy {
         object : TelephonyCallback(), TelephonyCallback.DisplayInfoListener {
@@ -71,6 +78,8 @@ class StatusBarService : Service() {
         super.onCreate()
         try {
             createChannel()
+            Shizuku.addBinderReceivedListenerSticky(shizukuBinderReceivedListener)
+            Shizuku.addBinderDeadListener(shizukuBinderDeadListener)
             val notification = Notification.Builder(this, CHANNEL)
                 .setSmallIcon(android.R.drawable.ic_menu_info_details)
                 .setContentTitle("Rui StatusBar")
@@ -99,6 +108,7 @@ class StatusBarService : Service() {
                 }
             }
             updateValues()
+            reapplyNativeStatusBarIfNeeded()
             handler.postDelayed(tick, 5_000L)
         } catch (e: Exception) {
             android.util.Log.e("RuiStatusBar", "Service startup failed", e)
@@ -111,6 +121,18 @@ class StatusBarService : Service() {
             updateStyleAndPosition()
         }
         return START_STICKY
+    }
+
+    private fun reapplyNativeStatusBarIfNeeded() {
+        if (!prefs.getBoolean("hideNativeStatusBar", false)) return
+        if (!Shizuku.pingBinder()) return
+        if (Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        try {
+            NativeStatusBarController.setHidden(this, true).getOrThrow()
+            android.util.Log.i("RuiStatusBar", "Native status bar hide reapplied")
+        } catch (e: Exception) {
+            android.util.Log.e("RuiStatusBar", "Unable to reapply native status bar hide", e)
+        }
     }
 
     private fun createChannel() {
@@ -340,6 +362,8 @@ class StatusBarService : Service() {
     }
 
     override fun onDestroy() {
+        Shizuku.removeBinderReceivedListener(shizukuBinderReceivedListener)
+        Shizuku.removeBinderDeadListener(shizukuBinderDeadListener)
         handler.removeCallbacks(tick)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
