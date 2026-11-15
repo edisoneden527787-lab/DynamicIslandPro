@@ -13,15 +13,34 @@ import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.graphics.Color
 import android.view.ViewGroup
+import rikka.shizuku.Shizuku
 
 class MainActivity : Activity() {
     private val prefs by lazy { getSharedPreferences("rui_statusbar", MODE_PRIVATE) }
     private lateinit var status: TextView
     private val signalPermissionRequest = 41
+    private val shizukuPermissionRequest = 42
+    private val shizukuPermissionListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+        if (requestCode == shizukuPermissionRequest) {
+            if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                applyNativeStatusBarToggle(true)
+            } else {
+                prefs.edit().putBoolean("hideNativeStatusBar", false).apply()
+                status.text = "Shizuku 權限未授予，系統狀態列沒有變更"
+                buildUi()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
         buildUi()
+    }
+
+    override fun onDestroy() {
+        Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener)
+        super.onDestroy()
     }
 
     private fun buildUi() {
@@ -54,6 +73,31 @@ class MainActivity : Activity() {
         root.addView(button("停用狀態列") {
             stopService(Intent(this, StatusBarService::class.java))
             status.text = "狀態列已停用"
+        })
+
+        root.addView(label("系統原生狀態列（Shizuku）"))
+        addToggle(root, "隱藏系統內建狀態列", "hideNativeStatusBar", false) { enabled ->
+            if (enabled) {
+                if (!Shizuku.pingBinder()) {
+                    prefs.edit().putBoolean("hideNativeStatusBar", false).apply()
+                    status.text = "請先開啟 Shizuku，並完成無線偵錯配對與啟動"
+                    Toast.makeText(this, "請先啟動 Shizuku", Toast.LENGTH_LONG).show()
+                    buildUi()
+                } else if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                    status.text = "正在請求 Shizuku 權限"
+                    Shizuku.requestPermission(shizukuPermissionRequest)
+                } else {
+                    applyNativeStatusBarToggle(true)
+                }
+            } else {
+                applyNativeStatusBarToggle(false)
+            }
+        }
+        root.addView(TextView(this).apply {
+            text = "需要先在 Shizuku App 透過無線偵錯啟動服務，再授權 Rui StatusBar。關閉開關會還原原本的系統設定。"
+            textSize = 12f
+            setTextColor(0xFF718096.toInt())
+            setPadding(0, 2, 0, 8)
         })
 
         root.addView(label("圖示顯示開關"))
@@ -203,6 +247,19 @@ class MainActivity : Activity() {
         })
         root.addView(valueText)
         root.addView(seek)
+    }
+
+    private fun applyNativeStatusBarToggle(hidden: Boolean) {
+        try {
+            val message = NativeStatusBarController.setHidden(this, hidden).getOrThrow()
+            status.text = message
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            prefs.edit().putBoolean("hideNativeStatusBar", !hidden).apply()
+            status.text = "設定失敗：" + (e.message ?: e.javaClass.simpleName)
+            Toast.makeText(this, status.text, Toast.LENGTH_LONG).show()
+            buildUi()
+        }
     }
 
     private fun startOverlay() {
