@@ -41,13 +41,6 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
-            Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
-            Shizuku.addBinderReceivedListenerSticky(shizukuBinderReceivedListener)
-            Shizuku.addBinderDeadListener(shizukuBinderDeadListener)
-        } catch (e: Exception) {
-            android.util.Log.e("RuiStatusBar", "Shizuku listener initialization failed", e)
-        }
-        try {
             buildUi()
         } catch (e: Exception) {
             android.util.Log.e("RuiStatusBar", "MainActivity startup failed", e)
@@ -55,10 +48,18 @@ class MainActivity : Activity() {
                 setTextColor(Color.WHITE)
                 textSize = 13f
                 setPadding(24, 32, 24, 32)
-                text = "Rui StatusBar 啟動失敗\n\n" + android.util.Log.getStackTraceString(e)
+                text = "Rui StatusBar 啟動失敗\\n\\n" + android.util.Log.getStackTraceString(e)
                 setBackgroundColor(Color.BLACK)
             }
             setContentView(ScrollView(this).apply { setBackgroundColor(Color.BLACK); addView(errorView) })
+        }
+        try {
+            Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
+            Shizuku.addBinderReceivedListenerSticky(shizukuBinderReceivedListener)
+            Shizuku.addBinderDeadListener(shizukuBinderDeadListener)
+            updateShizukuStatus()
+        } catch (e: Exception) {
+            android.util.Log.e("RuiStatusBar", "Shizuku listener initialization failed", e)
         }
     }
 
