@@ -115,6 +115,7 @@ class StatusBarService : Service() {
 
         time = TextView(this).apply {
             textSize = 16f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = Gravity.CENTER_VERTICAL
             includeFontPadding = false
             setSingleLine(true)
@@ -127,12 +128,12 @@ class StatusBarService : Service() {
         content.addView(View(this), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
         content.addView(cellular, iconParams(19, 19))
         content.addView(wifi, iconParams(20, 19))
-        content.addView(battery, iconParams(48, 22).apply { leftMargin = dp(3f).toInt() })
+        content.addView(battery, iconParams(58, 26).apply { leftMargin = dp(3f).toInt() })
         overlay.addView(content, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, statusHeight, Gravity.TOP))
-        overlay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, statusHeight + dp(220f).toInt())
+        overlay.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            statusHeight + dp(220f).toInt(),
+            WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
@@ -160,6 +161,12 @@ class StatusBarService : Service() {
         val size = prefs.getInt("font", 16) * prefs.getInt("scale", 100) / 100f
         time.setTextColor(textColor)
         time.textSize = size
+        val weight = when (prefs.getInt("clockWeight", 2)) {
+            1 -> Typeface.create("sans-serif", Typeface.NORMAL)
+            3 -> Typeface.create("sans-serif", Typeface.BOLD)
+            else -> Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        }
+        time.typeface = weight
         battery.setColor(textColor)
         battery.setTextSize(size * 0.72f)
         wifi.setColor(textColor)
@@ -290,10 +297,17 @@ class StatusBarService : Service() {
             canvas.drawRoundRect(RectF(inner.left, inner.top, min(fillRight, inner.right), inner.bottom), 1.5f*d, 1.5f*d, paint)
             val label = if (percent >= 0) percent.toString() else "--"
             paint.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            paint.textSize = textSizePx.coerceAtLeast(7f*d)
+            paint.textSize = textSizePx.coerceAtLeast(8f*d)
             paint.textAlign = Paint.Align.CENTER
             val fm = paint.fontMetrics
             val baseline = body.centerY() - (fm.ascent + fm.descent) / 2f
+            // Draw a contrasting outline around the digits so they remain readable over the fill.
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1.8f * d
+            paint.color = if (color == Color.WHITE) Color.BLACK else Color.WHITE
+            paint.alpha = 255
+            canvas.drawText(label, body.centerX(), baseline, paint)
+            paint.style = Paint.Style.FILL
             paint.color = if (percent >= 55) Color.WHITE else color
             paint.alpha = 255
             canvas.drawText(label, body.centerX(), baseline, paint)
