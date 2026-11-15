@@ -4,52 +4,33 @@ import android.content.Context
 import rikka.shizuku.Shizuku
 
 /**
- * Requests immersive status-bar hiding through Android's legacy global policy.
- * Do not use StatusBar disable flags here: they only hide selected icons and
- * leave the native status-bar area visible on many Android builds.
+ * Hides native status-bar contents through the same StatusBar shell command
+ * used by the previously working build. This is intentionally restored because
+ * OriginOS does not reliably apply the legacy policy_control immersive setting.
  */
 object NativeStatusBarController {
     private const val PREFS = "rui_statusbar"
-    private const val BACKUP_KEY = "nativeStatusBarPolicyBackup"
-    private const val HAD_VALUE_KEY = "nativeStatusBarPolicyHadValue"
-    private const val IMMERSIVE_POLICY = "immersive.status=*"
+    private const val HIDE_FLAGS =
+        "cmd statusbar send-disable-flag system-icons clock notification-icons"
 
     fun hasShizukuPermission(): Boolean =
         Shizuku.pingBinder() && Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED
 
     fun setHidden(context: Context, hidden: Boolean): Result<String> = runCatching {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (hidden) {
-            val current = shell("settings get global policy_control").trim()
-            if (!prefs.contains(BACKUP_KEY)) {
-                prefs.edit()
-                    .putBoolean(HAD_VALUE_KEY, current.isNotEmpty() && current != "null")
-                    .putString(BACKUP_KEY, if (current == "null") "" else current)
-                    .commit()
-            }
-
-            // Quote the asterisk so the shell cannot expand it as a filename glob.
-            shell("settings put global policy_control '${IMMERSIVE_POLICY}'")
-            val applied = shell("settings get global policy_control").trim()
-            check(applied == IMMERSIVE_POLICY) {
-                "OriginOS 沒有接受整條狀態列隱藏設定（讀回：${applied.ifBlank { "空值" }}）。已停止使用只會隱藏時鐘／圖示的替代指令。"
-            }
-            prefs.edit().putBoolean("nativeStatusBarShellHidden", true).commit()
-            "已套用沉浸式狀態列隱藏設定"
+            shell(HIDE_FLAGS)
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("nativeStatusBarShellHidden", true)
+                .commit()
+            "已送出隱藏原生狀態列指令"
         } else {
-            val hadValue = prefs.getBoolean(HAD_VALUE_KEY, false)
-            val previous = prefs.getString(BACKUP_KEY, "").orEmpty()
-            if (hadValue) {
-                shell("settings put global policy_control ${quote(previous)}")
-            } else {
-                shell("settings delete global policy_control")
-            }
-            prefs.edit()
-                .remove(BACKUP_KEY)
-                .remove(HAD_VALUE_KEY)
+            shell("cmd statusbar send-disable-flag none")
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
                 .putBoolean("nativeStatusBarShellHidden", false)
                 .commit()
-            "已還原原生狀態列設定"
+            "已恢復原生狀態列"
         }
     }
 
@@ -69,7 +50,4 @@ object NativeStatusBarController {
         check(exit == 0) { error.ifBlank { output.ifBlank { "Shizuku 指令執行失敗（$exit）" } } }
         return output
     }
-
-    private fun quote(value: String): String =
-        "'" + value.replace("'", "'\\''") + "'"
 }
