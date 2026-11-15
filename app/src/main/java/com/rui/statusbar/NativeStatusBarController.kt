@@ -49,12 +49,16 @@ object NativeStatusBarController {
     }
 
     private fun shell(command: String): String {
-        // Use Shizuku's public process bridge; reflection against private methods fails on current Shizuku builds.
         check(Shizuku.pingBinder()) { "Shizuku 服務尚未啟動，請先在 Shizuku App 啟動服務" }
         check(Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
             "Rui StatusBar 尚未取得 Shizuku 授權"
         }
-        val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
+        // Shizuku 13.x exposes the process bridge as a private static method.
+        val method = Shizuku::class.java.getDeclaredMethod(
+            "newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java
+        )
+        method.isAccessible = true
+        val process = method.invoke(null, arrayOf("sh", "-c", command), null, null) as Process
         val output = process.inputStream.bufferedReader().use { it.readText() }
         val error = process.errorStream.bufferedReader().use { it.readText() }
         val exit = process.waitFor()
