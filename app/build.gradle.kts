@@ -2,6 +2,10 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+dependencies {
+    implementation("dev.rikka.shizuku:api:13.1.5")
+}
+
 android {
     namespace = "com.rui.statusbar"
     compileSdk = 35
