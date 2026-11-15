@@ -34,8 +34,15 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = Color.BLACK
+        window.navigationBarColor = Color.BLACK
+        if (Build.VERSION.SDK_INT >= 29) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = 0
         Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
-        buildUi()
     }
 
     override fun onDestroy() {
@@ -48,19 +55,19 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             val d = resources.displayMetrics.density
             setPadding((20*d).toInt(), (24*d).toInt(), (20*d).toInt(), (32*d).toInt())
-            setBackgroundColor(0xFFF3F5F9.toInt())
+            setBackgroundColor(Color.BLACK)
         }
         root.addView(TextView(this).apply {
             text = "Rui StatusBar"
             textSize = 27f
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            setTextColor(0xFF172033.toInt())
+            setTextColor(Color.WHITE)
             setPadding(0, 0, 0, 5)
         })
         status = TextView(this).apply {
             text = "自訂你的透明狀態列"
             textSize = 14f
-            setTextColor(0xFF718096.toInt())
+            setTextColor(0xFF8E8E93.toInt())
             setPadding(0, 0, 0, 16)
         }
         root.addView(status)
@@ -181,14 +188,63 @@ class MainActivity : Activity() {
         root.addView(TextView(this).apply {
             text = "XY 位置會即時套用到狀態列內容。背景透明，不接收觸控。"
             textSize = 12f
-            setTextColor(0xFF666666.toInt())
+            setTextColor(0xFF8E8E93.toInt())
             setPadding(0, 16, 0, 16)
         })
         root.addView(button("恢復預設值") {
             prefs.edit().clear().apply()
             buildUi()
         })
-        setContentView(ScrollView(this).apply { addView(root) })
+        // iOS Settings-inspired dark grouped controls.
+        for (index in 0 until root.childCount) {
+            val child = root.getChildAt(index)
+            when (child) {
+                is Switch -> {
+                    child.setTextColor(Color.WHITE)
+                    child.textSize = 15f
+                    child.background = roundedPanel(0xFF1C1C1E.toInt(), 16f)
+                    child.buttonTintList = ColorStateList.valueOf(0xFF30D158.toInt())
+                    child.setPadding(dp(14), dp(10), dp(14), dp(10))
+                }
+                is Button -> {
+                    child.background = roundedPanel(0xFF2C2C2E.toInt(), 18f)
+                    child.backgroundTintList = null
+                    child.setTextColor(0xFF0A84FF.toInt())
+                    child.minHeight = dp(48)
+                    child.setPadding(dp(18), dp(10), dp(18), dp(10))
+                }
+                is SeekBar -> {
+                    child.progressTintList = ColorStateList.valueOf(0xFF0A84FF.toInt())
+                    child.thumbTintList = ColorStateList.valueOf(0xFF0A84FF.toInt())
+                }
+                is EditText -> {
+                    child.setTextColor(Color.WHITE)
+                    child.setHintTextColor(0xFF8E8E93.toInt())
+                    child.background = roundedPanel(0xFF1C1C1E.toInt(), 14f)
+                    child.setPadding(dp(14), dp(12), dp(14), dp(12))
+                }
+                is Spinner -> {
+                    child.background = roundedPanel(0xFF1C1C1E.toInt(), 14f)
+                    child.setPadding(dp(12), dp(8), dp(12), dp(8))
+                }
+                is RadioGroup -> {
+                    for (i in 0 until child.childCount) {
+                        (child.getChildAt(i) as? RadioButton)?.apply {
+                            setTextColor(Color.WHITE)
+                            buttonTintList = ColorStateList.valueOf(0xFF0A84FF.toInt())
+                        }
+                    }
+                }
+                is TextView -> {
+                    if (child.textSize <= 14f) child.setTextColor(0xFF8E8E93.toInt())
+                }
+            }
+        }
+        setContentView(ScrollView(this).apply {
+            setBackgroundColor(Color.BLACK)
+            clipToPadding = false
+            addView(root)
+        })
         refresh()
     }
 
@@ -196,7 +252,8 @@ class MainActivity : Activity() {
         val toggle = Switch(this).apply {
             text = title
             textSize = 15f
-            setTextColor(0xFF222222.toInt())
+            setTextColor(Color.WHITE)
+            buttonTintList = ColorStateList.valueOf(0xFF30D158.toInt())
             isChecked = prefs.getBoolean(key, default)
             setOnCheckedChangeListener { _, checked ->
                 prefs.edit().putBoolean(key, checked).apply()
@@ -212,7 +269,7 @@ class MainActivity : Activity() {
         text = s
         textSize = 13f
         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-        setTextColor(0xFF52627A.toInt())
+        setTextColor(0xFF8E8E93.toInt())
         setPadding(0, 22, 0, 8)
     }
 
@@ -222,18 +279,19 @@ class MainActivity : Activity() {
         textSize = 14f
         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         setTextColor(Color.WHITE)
-        backgroundTintList = ColorStateList.valueOf(0xFF3867D6.toInt())
+        background = roundedPanel(0xFF2C2C2E.toInt(), 18f)
+        backgroundTintList = null
         setPadding(18, 8, 18, 8)
         setOnClickListener { action() }
     }
 
     private fun addSlider(root: LinearLayout, min: Int, max: Int, value: Int, suffix: String, changed: (Int) -> Unit) {
-        val valueText = TextView(this).apply { textSize = 13f; setTextColor(0xFF555555.toInt()) }
+        val valueText = TextView(this).apply { textSize = 13f; setTextColor(0xFFAEAEB2.toInt()) }
         val seek = SeekBar(this).apply {
             this.max = max - min
             progress = (value - min).coerceIn(0, this.max)
-            progressTintList = ColorStateList.valueOf(0xFF3867D6.toInt())
-            thumbTintList = ColorStateList.valueOf(0xFF3867D6.toInt())
+            progressTintList = ColorStateList.valueOf(0xFF0A84FF.toInt())
+            thumbTintList = ColorStateList.valueOf(0xFF0A84FF.toInt())
         }
         fun show(v: Int) { valueText.text = v.toString() + suffix }
         show(value)
@@ -249,6 +307,14 @@ class MainActivity : Activity() {
         root.addView(valueText)
         root.addView(seek)
     }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun roundedPanel(color: Int, radiusDp: Float): android.graphics.drawable.GradientDrawable =
+        android.graphics.drawable.GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = radiusDp * resources.displayMetrics.density
+        }
 
     private fun openShizuku() {
         val shizukuPackage = "moe.shizuku.privileged.api"
