@@ -28,6 +28,7 @@ class StatusBarService : Service() {
     private lateinit var params:WindowManager.LayoutParams
     private val handler=Handler(Looper.getMainLooper())
     private var telephonyCallback:TelephonyCallback?=null
+    @Volatile private var signalIndicator = "··"
     private val prefs by lazy { getSharedPreferences("rui_statusbar",MODE_PRIVATE) }
     private val tick=object:Runnable { override fun run(){ updateValues(); handler.postDelayed(this,1000) } }
     private val receiver=object:BroadcastReceiver() {
@@ -85,7 +86,7 @@ class StatusBarService : Service() {
         val caps=cm.getNetworkCapabilities(cm.activeNetwork)
         val wifi=caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)==true
         val cellular=caps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)==true
-        network.text=if(wifi) "  Wi-Fi" else if(cellular) "  ▂▄▆█" else "  ·"
+        network.text=if(wifi) "  Wi-Fi" else if(cellular) "  "+signalIndicator else "  ·"
         val sticky=registerReceiver(null,IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level=sticky?.getIntExtra(BatteryManager.EXTRA_LEVEL,-1)?:-1
         val scale=sticky?.getIntExtra(BatteryManager.EXTRA_SCALE,100)?:100
@@ -98,8 +99,8 @@ class StatusBarService : Service() {
                 val tm=getSystemService(TELEPHONY_SERVICE) as TelephonyManager
                 val callback=object:TelephonyCallback(),TelephonyCallback.SignalStrengthsListener {
                     override fun onSignalStrengthsChanged(signalStrength:SignalStrength) {
-                        val bars="▂▄▆█".take((signalStrength.level+1).coerceIn(1,4))
-                        handler.post { if(!isFinishing()) network.text="  "+bars }
+                        signalIndicator = "▂▄▆█".take((signalStrength.level+1).coerceIn(1,4))
+                        handler.post { updateValues() }
                     }
                     private fun isFinishing()=false
                 }
