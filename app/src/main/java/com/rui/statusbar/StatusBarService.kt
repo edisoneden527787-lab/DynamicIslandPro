@@ -386,25 +386,34 @@ class StatusBarService : Service() {
             paint.style = Paint.Style.FILL
             canvas.drawRoundRect(tip, 1f*d, 1f*d, paint)
             val inner = RectF(body.left+2f*d, body.top+2f*d, body.right-2f*d, body.bottom-2f*d)
-            val fillRight = inner.left + (inner.width() * (if (percent >= 0) percent / 100f else 0.5f)).coerceAtLeast(2f*d)
+            val fillFraction = if (percent >= 0) percent / 100f else 0.5f
+            val fillRight = inner.left + (inner.width() * fillFraction).coerceIn(0f, inner.width())
+            // Make the unfilled half white and the filled half follow the status-bar color.
+            // The percentage is then drawn in the inverse color on each half.
+            val inverseColor = if (color == Color.WHITE) Color.BLACK else Color.WHITE
+            paint.style = Paint.Style.FILL
+            paint.color = inverseColor
+            paint.alpha = 255
+            canvas.drawRoundRect(inner, 1.5f*d, 1.5f*d, paint)
             paint.color = color
             canvas.drawRoundRect(RectF(inner.left, inner.top, min(fillRight, inner.right), inner.bottom), 1.5f*d, 1.5f*d, paint)
             val label = if (percent >= 0) percent.toString() else "--"
-            paint.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            paint.typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             paint.textSize = textSizePx.coerceAtLeast(8f*d)
             paint.textAlign = Paint.Align.CENTER
             val fm = paint.fontMetrics
             val baseline = body.centerY() - (fm.ascent + fm.descent) / 2f
-            // Draw a contrasting outline around the digits so they remain readable over the fill.
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 1.8f * d
-            paint.color = 0xFFD6D9DE.toInt()
-            paint.alpha = 255
+            // Split the digits exactly at the fill boundary: white on dark fill, black on white remainder.
+            val save = canvas.save()
+            canvas.clipRect(inner.left, inner.top, min(fillRight, inner.right), inner.bottom)
+            paint.color = inverseColor
             canvas.drawText(label, body.centerX(), baseline, paint)
-            paint.style = Paint.Style.FILL
-            paint.color = if (percent >= 55) Color.WHITE else color
-            paint.alpha = 255
+            canvas.restoreToCount(save)
+            val saveRemainder = canvas.save()
+            canvas.clipRect(min(fillRight, inner.right), inner.top, inner.right, inner.bottom)
+            paint.color = color
             canvas.drawText(label, body.centerX(), baseline, paint)
+            canvas.restoreToCount(saveRemainder)
         }
     }
 }
