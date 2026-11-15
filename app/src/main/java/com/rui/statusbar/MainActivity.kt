@@ -78,9 +78,15 @@ class MainActivity : Activity() {
             status.text="請先授予 Overlay 權限"
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:$packageName"))); return
         }
-        val i=Intent(this,StatusBarService::class.java)
-        if(Build.VERSION.SDK_INT>=26) startForegroundService(i) else startService(i)
-        status.text="狀態列已啟用"
+        try {
+            val i=Intent(this,StatusBarService::class.java)
+            if(Build.VERSION.SDK_INT>=26) startForegroundService(i) else startService(i)
+            status.text="正在啟動狀態列…"
+        } catch (e: Exception) {
+            android.util.Log.e("RuiStatusBar", "Unable to start status bar service", e)
+            status.text="啟動失敗："+(e.message ?: e.javaClass.simpleName)
+            Toast.makeText(this, status.text, Toast.LENGTH_LONG).show()
+        }
     }
     private fun refresh() { sendBroadcast(Intent(StatusBarService.ACTION_REFRESH).setPackage(packageName)) }
 }
