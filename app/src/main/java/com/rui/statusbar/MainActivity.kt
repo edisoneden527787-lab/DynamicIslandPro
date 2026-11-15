@@ -26,7 +26,7 @@ class MainActivity : Activity() {
     private fun buildUi() {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(24,24,24,24); setBackgroundColor(0xFFF5F5F5.toInt()) }
         root.addView(TextView(this).apply { text="Rui StatusBar"; textSize=26f; setTextColor(0xFF111111.toInt()) })
-        status = TextView(this).apply { text="透明狀態列 Overlay"; textSize=14f; setTextColor(0xFF555555.toInt()) }
+        status = TextView(this).apply { text="頂端顯示時間、網路與電量"; textSize=14f; setTextColor(0xFF555555.toInt()) }
         root.addView(status)
         root.addView(label("顯示與權限"))
         root.addView(button("授予「顯示在其他 App 上層」權限") {
